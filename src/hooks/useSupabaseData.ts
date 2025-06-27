@@ -194,7 +194,8 @@ export const useAgents = () => {
           id: agent.id,
           name: agent.name,
           email: agent.email,
-          department: agent.department
+          department: agent.department,
+          role: agent.role
         }));
         console.log('useAgents: Transformed agents data:', transformedData);
         

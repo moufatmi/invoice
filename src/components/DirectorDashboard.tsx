@@ -16,12 +16,22 @@ const DirectorDashboard: React.FC<DirectorDashboardProps> = ({ onLogout }) => {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [viewMode, setViewMode] = useState<'today' | 'all'>('today');
   const [selectedAgent, setSelectedAgent] = useState<string>('all');
+  const [performanceView, setPerformanceView] = useState<'agents' | 'all'>('agents');
 
   // Fetch ALL data from Supabase (not filtered by agent for director view)
   const { invoices, loading: invoicesLoading, error: invoicesError, updateInvoice } = useInvoices(); // No agentId = fetch all
   const { stats, loading: statsLoading } = useDashboardStats(); // No agentId = all stats
   const { todaysInvoices, loading: todaysLoading } = useTodaysInvoices(); // No agentId = all today's invoices
   const { agents, loading: agentsLoading } = useAgents();
+
+  const agentsOnly = React.useMemo(() => agents.filter(a => a.role !== 'director'), [agents]);
+
+  const performanceUsers = React.useMemo(() => {
+    if (performanceView === 'agents') {
+      return agents.filter(a => a.role !== 'director');
+    }
+    return agents; // for 'all'
+  }, [agents, performanceView]);
 
   const handleViewInvoice = (invoice: Invoice) => {
     setSelectedInvoice(invoice);
@@ -78,7 +88,7 @@ const DirectorDashboard: React.FC<DirectorDashboardProps> = ({ onLogout }) => {
 
   // Agent performance data
   const agentPerformance = React.useMemo(() => {
-    return agents.map(agent => {
+    return performanceUsers.map(agent => {
       const agentInvoices = invoices.filter(inv => inv.agentId === agent.id);
       const todayInvoices = todaysInvoices.filter(inv => inv.agentId === agent.id);
       const totalRevenue = agentInvoices
@@ -95,7 +105,7 @@ const DirectorDashboard: React.FC<DirectorDashboardProps> = ({ onLogout }) => {
           : 0
       };
     });
-  }, [agents, invoices, todaysInvoices]);
+  }, [performanceUsers, invoices, todaysInvoices]);
 
   // Loading state
   if (invoicesLoading || statsLoading || agentsLoading || todaysLoading) {
@@ -213,7 +223,7 @@ const DirectorDashboard: React.FC<DirectorDashboardProps> = ({ onLogout }) => {
                 className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               >
                 <option value="all">All Agents</option>
-                {agents.map(agent => (
+                {agentsOnly.map(agent => (
                   <option key={agent.id} value={agent.id}>{agent.name}</option>
                 ))}
               </select>
@@ -269,58 +279,55 @@ const DirectorDashboard: React.FC<DirectorDashboardProps> = ({ onLogout }) => {
         </div>
       </div>
 
-      {/* Agent Performance Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg mb-8 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+      {/* Agent Performance Overview */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6">
+        <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Agent Performance Overview</h3>
+          <div className="flex items-center space-x-2">
+            <Users className="h-5 w-5 text-gray-500" />
+            <select
+                value={performanceView}
+                onChange={(e) => setPerformanceView(e.target.value as 'agents' | 'all')}
+                className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+              >
+                <option value="agents">Showing Agents</option>
+                <option value="all">Showing All Users</option>
+            </select>
+          </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead className="bg-gray-50 dark:bg-gray-700">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Agent</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Department</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Today</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Total Invoices</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Revenue</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Success Rate</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {agentPerformance.map(agent => (
-                <tr key={agent.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="bg-blue-100 dark:bg-blue-900 p-2 rounded-full mr-3">
-                        <Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">{agent.name}</div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">{agent.email}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{agent.department}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">{agent.todayInvoices}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">{agent.totalInvoices}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
-                    {formatCurrency(agent.totalRevenue)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="w-16 bg-gray-200 dark:bg-gray-600 rounded-full h-2 mr-2">
-                        <div 
-                          className="bg-green-500 h-2 rounded-full" 
-                          style={{ width: `${agent.successRate}%` }}
-                        ></div>
-                      </div>
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">{agent.successRate}%</span>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+
+        <div className="space-y-1">
+          {/* Table header */}
+          <div className="grid grid-cols-12 gap-4 px-4 py-2 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+            <div className="col-span-2">Agent</div>
+            <div className="col-span-2">Department</div>
+            <div className="col-span-2">Today</div>
+            <div className="col-span-2">Total Invoices</div>
+            <div className="col-span-2">Revenue</div>
+            <div className="col-span-2">Success Rate</div>
+          </div>
+
+          {/* Table body */}
+          {agentPerformance.map(agent => (
+            <div key={agent.id} className="grid grid-cols-12 gap-4 px-4 py-2 text-sm text-gray-900 dark:text-white">
+              <div className="col-span-2">{agent.name}</div>
+              <div className="col-span-2">{agent.department}</div>
+              <div className="col-span-2">{agent.todayInvoices}</div>
+              <div className="col-span-2">{agent.totalInvoices}</div>
+              <div className="col-span-2">{formatCurrency(agent.totalRevenue)}</div>
+              <div className="col-span-2">
+                <div className="flex items-center">
+                  <div className="w-16 bg-gray-200 dark:bg-gray-600 rounded-full h-2 mr-2">
+                    <div 
+                      className="bg-green-500 h-2 rounded-full" 
+                      style={{ width: `${agent.successRate}%` }}
+                    ></div>
+                  </div>
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{agent.successRate}%</span>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
