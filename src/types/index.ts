@@ -36,6 +36,7 @@ export interface Agent {
   name: string;
   email: string;
   department: string;
+  role?: 'agent' | 'director';
 }
 
 export interface DashboardStats {

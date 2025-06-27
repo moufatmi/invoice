@@ -6,28 +6,44 @@ import AuthForm from './components/AuthForm';
 import { SettingsProvider } from './contexts/SettingsContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Invoice } from './types';
+import { supabase, supabaseHelpers } from './lib/supabase';
 
 function AppContent() {
   const [currentView, setCurrentView] = useState<'agent' | 'director-login' | 'director-dashboard'>('agent');
   const [allInvoices, setAllInvoices] = useState<Invoice[]>([]);
   const [loginError, setLoginError] = useState<string>('');
   
-  const { isAuthenticated, loading, signIn } = useAuth();
+  const { isAuthenticated, loading, signIn, signOut, agentProfile } = useAuth();
 
   const handleDirectorLogin = () => {
     setCurrentView('director-login');
   };
 
   const handleLogin = async (email: string, password: string) => {
+    setLoginError('');
     const { error } = await signIn(email, password);
 
-    if (!error) {
-      // For this app, we assume any successful sign-in is a director.
-      // A more robust solution might check a user's role.
-      setCurrentView('director-dashboard');
-      setLoginError('');
-    } else {
-      setLoginError(error || 'Invalid username or password. Please try again.');
+    if (error) {
+      setLoginError(error);
+      return;
+    }
+    // Note: onAuthStateChange in AuthContext will fire and update agentProfile.
+    // However, the state update may not be synchronous.
+    // For this login flow, we'll fetch the profile directly to ensure we have the role immediately.
+    try {
+      const user = (await supabase.auth.getUser()).data.user;
+      if (user) {
+        const profile = await supabaseHelpers.getAgentById(user.id);
+        if (profile && profile.role === 'director') {
+          setCurrentView('director-dashboard');
+        } else {
+          setLoginError('You do not have permission to access the director dashboard.');
+          await signOut();
+        }
+      }
+    } catch (e) {
+      setLoginError('Failed to verify user role.');
+      await signOut();
     }
   };
 
@@ -36,7 +52,8 @@ function AppContent() {
     setLoginError('');
   };
 
-  const handleLogoutDirector = () => {
+  const handleLogoutDirector = async () => {
+    await signOut();
     setCurrentView('agent');
     setLoginError('');
   };

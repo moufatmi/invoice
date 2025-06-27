@@ -1,10 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { supabase, supabaseHelpers } from '../lib/supabase';
+import { Agent } from '../types';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
+  agentProfile: Agent | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   signUp: (email: string, password: string, name: string, department: string) => Promise<{ error?: string }>;
@@ -25,6 +27,7 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [agentProfile, setAgentProfile] = useState<Agent | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -40,7 +43,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
-      setUser(session?.user ?? null);
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+
+      if (currentUser) {
+        try {
+          // Fetch the user's profile from the 'agents' table
+          const profile = await supabaseHelpers.getAgentById(currentUser.id);
+          setAgentProfile(profile as Agent);
+        } catch (error) {
+          console.error('Error fetching agent profile', error);
+          setAgentProfile(null);
+        }
+      } else {
+        setAgentProfile(null);
+      }
       setLoading(false);
     });
 
@@ -109,6 +126,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (sessionError || !currentSession) {
         setUser(null);
         setSession(null);
+        setAgentProfile(null);
         return;
       }
 
@@ -124,12 +142,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Always clear local authentication state
       setUser(null);
       setSession(null);
+      setAgentProfile(null);
     }
   };
 
   const value = {
     user,
     session,
+    agentProfile,
     loading,
     signIn,
     signUp,
