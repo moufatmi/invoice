@@ -12,19 +12,22 @@ function AppContent() {
   const [allInvoices, setAllInvoices] = useState<Invoice[]>([]);
   const [loginError, setLoginError] = useState<string>('');
   
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, signIn } = useAuth();
 
   const handleDirectorLogin = () => {
     setCurrentView('director-login');
   };
 
-  const handleLogin = (username: string, password: string) => {
-    // Check credentials - Updated to use email "admin" and password "admin"
-    if (username === 'admin' && password === 'admin') {
+  const handleLogin = async (email: string, password: string) => {
+    const { error } = await signIn(email, password);
+
+    if (!error) {
+      // For this app, we assume any successful sign-in is a director.
+      // A more robust solution might check a user's role.
       setCurrentView('director-dashboard');
       setLoginError('');
     } else {
-      setLoginError('Invalid username or password. Please try again.');
+      setLoginError(error || 'Invalid username or password. Please try again.');
     }
   };
 
