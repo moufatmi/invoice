@@ -131,8 +131,8 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, onBack, error }) => {
           <div className="mt-8 p-4 bg-purple-50 rounded-lg border border-purple-200">
             <h3 className="text-sm font-medium text-purple-900 mb-2">Director Credentials:</h3>
             <div className="text-sm text-purple-700 space-y-1">
-              <p><span className="font-medium">Email:</span> admin</p>
-              <p><span className="font-medium">Password:</span> admin</p>
+              <p><span className="font-medium">Email:</span> test@moussab.com</p>
+              <p><span className="font-medium">Password:</span> ana123</p>
             </div>
           </div>
         </div>
